@@ -16,7 +16,7 @@ a:active {
     font-weight: normal;
     font-style: normal;
 }
-h1 {
+#title {
     font-family: "FuturaRennerRegular", "Helvetica", "Verdana", sans-serif;
     font-weight: bold;
     font-size: 1.7em;
@@ -27,9 +27,16 @@ h1 {
 
 h2 {
     font-weight: bold;
-    font-size: 1.4em;
+    font-size: 1.8em;
     margin-bottom: 0.2em;
     margin-top: 1.4em;
+}
+
+h1 {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 0.2em;
+    margin-top: 1.8em;
 }
 
 .wrapper {
@@ -80,4 +87,18 @@ span.spamprotection {
 }
 #disclaimer {
     font-size: 12pt;
+}
+
+pre {
+  padding: 1rem;
+  overflow: auto;
+}
+
+p code, li code {
+  background-color: #f0f0f0;
+  white-space: pre-wrap;
+  padding: 5px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  /*box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 1px rgba(0,0,0,.1), 0 2px 1px -1px rgba(0,0,0,.12);*/
 }

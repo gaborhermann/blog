@@ -7,7 +7,7 @@ I'd like to buy a phone that's supported by LineageOS, was preferably released r
 I could manually browse the [LineageOS supported devices](https://wiki.lineageos.org/devices/), but it would take long to find what I'm looking for within hundreds of devices.
 Luckily, the wiki of LineageOS is also open-source, so we can fetch the data and use SQLite to browse the devices.
 
-We're going
+We're going to
 - fetch the data from GitHub,
 - import it into SQLite with some bash magic, and
 - query it with SQL.

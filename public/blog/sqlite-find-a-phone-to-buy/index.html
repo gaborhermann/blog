@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Gábor Hermann's blog</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="icon" href="images/tree.png">
+</head>
+
+<body>
+<main class="wrapper">
+    <h1 id="title">Gábor Hermann's blog</h1>
+    <div id="hr-tree" class="full-bleed">
+        <div class="hr-tree"></div>
+        <hr class="hr-tree"/>
+    </div>
+    <div id="content">
+        
+<h2>
+    Using SQLite for choosing a phone to buy
+</h2>
+<p><p>I'd like to buy a phone that's supported by LineageOS, was preferably released recently, and has a small screen. (Am I the only one who hates big screen phones?)
+I could manually browse the <a href="https://wiki.lineageos.org/devices/">LineageOS supported devices</a>, but it would take long to find what I'm looking for within hundreds of devices.
+Luckily, the wiki of LineageOS is also open-source, so we can fetch the data and use SQLite to browse the devices.</p>
+<p>We're going to</p>
+<ul>
+<li>fetch the data from GitHub,</li>
+<li>import it into SQLite with some bash magic, and</li>
+<li>query it with SQL.</li>
+</ul>
+<p>For this I'm using Manjaro Linux (which is based on Arch Linux), but probably any UNIX-based system will work similarly.</p>
+<h1 id="fetch-the-data">Fetch the data</h1>
+<p>We can find the repository by searching in <a href="https://github.com/LineageOS">LineageOS repos on GitHub</a> for &quot;wiki&quot;.
+Then we can clone the repository:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">mkdir</span><span> find_me_a_phone
+</span><span style="color:#96b5b4;">cd</span><span> find_me_a_phone
+</span><span style="color:#bf616a;">git</span><span> clone</span><span style="color:#bf616a;"> --depth</span><span> 1 https://github.com/LineageOS/lineage_wiki.git
+</span></code></pre>
+<p>We use <code>--depth 1</code> to avoid downloading the huge history. We're only interested in the current state now.</p>
+<p>We find that the data is in <code>_data/devices</code> folder in separate YAML files for each device:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">ls</span><span> lineage_wiki/_data/devices/ | </span><span style="color:#bf616a;">head
+</span></code></pre>
+<p>gives</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>a3xelte.yml
+</span><span>a5xelte.yml
+</span><span>a5y17lte.yml
+</span><span>A6020.yml
+</span><span>a7xelte.yml
+</span><span>a7y17lte.yml
+</span><span>addison.yml
+</span><span>ahannah.yml
+</span><span>akari.yml
+</span><span>akatsuki.yml
+</span></code></pre>
+<h1 id="import-into-sqlite">Import into SQLite</h1>
+<p>We can use the <a href="https://github.com/simonw/yaml-to-sqlite">yaml-to-sqlite</a> tool. (Not surprisingly it's made by Simon Willison who is a master of <a href="https://simonwillison.net/2020/Oct/9/git-scraping/">git scraping</a>.) We can install it in Python virtualenv, not to interfere with the system Python installation.</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">python -m</span><span> venv venv
+</span><span style="color:#96b5b4;">source</span><span> ./venv/bin/activate
+</span><span style="color:#bf616a;">pip</span><span> install yaml-to-sqlite
+</span></code></pre>
+<p>The <code>yaml-to-sqlite</code> command will expect us to give a single big YAML file, so we will need to make a YAML list with some bash magic and load it into a single <code>devices.yaml</code> file:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#b48ead;">for</span><span> file </span><span style="color:#b48ead;">in </span><span>$(</span><span style="color:#bf616a;">ls</span><span> lineage_wiki/_data/devices/); </span><span style="color:#b48ead;">do
+</span><span>    </span><span style="color:#96b5b4;">echo </span><span style="color:#bf616a;">-n </span><span>&quot;</span><span style="color:#a3be8c;">-</span><span>&quot; &gt;&gt; devices.yaml
+</span><span>    </span><span style="color:#bf616a;">cat</span><span> lineage_wiki/_data/devices/${</span><span style="color:#bf616a;">file</span><span>} | </span><span style="color:#bf616a;">sed -e </span><span>&#39;</span><span style="color:#a3be8c;">s/^/  /</span><span>&#39; | </span><span style="color:#bf616a;">tail -c</span><span> +2 &gt;&gt; devices.yaml
+</span><span style="color:#b48ead;">done</span><span>;
+</span></code></pre>
+<p>Here we're</p>
+<ul>
+<li>adding a <code>-</code> to the beginning of all files,</li>
+<li>adding spaces to the beginning of lines (with <code>sed</code>),</li>
+<li>removing a space at the beginning of all files (with <code>tail</code>, to align spaces), and</li>
+<li>appending them to <code>devices.yaml</code>.</li>
+</ul>
+<p>We get a YAML list that will look something like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>- architecture: arm64
+</span><span>  battery: {removable: True, capacity: 2750, tech: &#39;Li-Ion&#39;}
+</span><span>  bluetooth: {spec: &#39;4.1&#39;, profiles: [A2DP]}
+</span><span>  ...
+</span><span>- architecture: arm64
+</span><span>  battery: {removable: False, capacity: 3000, tech: &#39;Li-Ion&#39;}
+</span><span>  before_install: needs_specific_android_fw
+</span><span>  ...
+</span></code></pre>
+<p>We can then turn our YAML into a single SQLite table.</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">yaml-to-sqlite</span><span> db.sqlite devices devices.yaml
+</span></code></pre>
+<h1 id="query-to-find-devices">Query to find devices</h1>
+<p>We can use the <code>sqlite3</code> command to have a SQL shell:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">sqlite3</span><span> db.sqlite
+</span></code></pre>
+<p>Browsing the columns</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>pragma table_info(devices);
+</span></code></pre>
+<p>we can find the interesting ones: <code>screen</code>, <code>release</code>, <code>name</code>.</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">SELECT</span><span> screen, name, release </span><span style="color:#b48ead;">FROM</span><span> devices </span><span style="color:#b48ead;">LIMIT </span><span style="color:#d08770;">3</span><span>;
+</span></code></pre>
+<p>gives something like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{&quot;size&quot;: &quot;119 mm (4.7 in)&quot;, &quot;density&quot;: 312, &quot;resolution&quot;: &quot;1280x720&quot;, &quot;technology&quot;: &quot;Super AMOLED&quot;}|Galaxy A3 (2016)|2015-12
+</span><span>{&quot;size&quot;: &quot;130 mm (5.2 in)&quot;, &quot;density&quot;: 424, &quot;resolution&quot;: &quot;1920x1080&quot;, &quot;technology&quot;: &quot;Super AMOLED&quot;}|Galaxy A5 (2016)|2015-12
+</span><span>{&quot;size&quot;: &quot;132 mm (5.2 in)&quot;, &quot;density&quot;: 424, &quot;resolution&quot;: &quot;1920x1080&quot;, &quot;technology&quot;: &quot;Super AMOLED&quot;}|Galaxy A5 (2017)|2017-01-02
+</span></code></pre>
+<p>We have all the info that we need, but unfortunately <code>size</code> is wrapped in JSON.
+SQLite can parse JSON too:</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">CREATE VIEW </span><span>parsed AS </span><span style="color:#8fa1b3;">SELECT
+</span><span>    </span><span style="color:#b48ead;">CASE WHEN</span><span> json_valid(screen) = </span><span style="color:#d08770;">1
+</span><span>    </span><span style="color:#b48ead;">THEN</span><span> json_extract(screen, &quot;</span><span style="color:#a3be8c;">$.size</span><span>&quot;)
+</span><span>    </span><span style="color:#b48ead;">ELSE </span><span style="color:#d08770;">NULL
+</span><span>    </span><span style="color:#b48ead;">END </span><span>AS screen_size,
+</span><span>    name,
+</span><span>    release
+</span><span style="color:#b48ead;">FROM</span><span> devices;
+</span></code></pre>
+<p>The screen size in some devices is not correct JSON, so let's just ignore those, by setting it <code>NULL</code>.
+We can see that it's only 20 devices out of 373 devices (<code>SELECT COUNT(*) FROM parsed WHERE screen_size IS NULL OR screen_size = '';</code>).</p>
+<p>We <code>CREATE VIEW</code> to make it easier to further explore the data.</p>
+<p>This <code>parsed</code> view will have data like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>119 mm (4.7 in)|Galaxy A3 (2016)|2015-12
+</span><span>130 mm (5.2 in)|Galaxy A5 (2016)|2015-12
+</span><span>132 mm (5.2 in)|Galaxy A5 (2017)|2017-01-02
+</span></code></pre>
+<p>Pretty good, but we'd like to sort on screen size in inches.
+Let's parse the screen size as <code>NUMERIC</code>:</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">CREATE VIEW </span><span>with_size AS </span><span style="color:#8fa1b3;">SELECT
+</span><span>    CAST(substr(screen_size, instr(screen_size, &#39;</span><span style="color:#a3be8c;">(</span><span>&#39;) + </span><span style="color:#d08770;">1</span><span>, instr(screen_size, &#39;</span><span style="color:#a3be8c;"> in)</span><span>&#39;)) AS </span><span style="color:#b48ead;">NUMERIC</span><span>) AS size_in,
+</span><span>    </span><span style="color:#bf616a;">*
+</span><span style="color:#b48ead;">FROM</span><span> parsed
+</span><span style="color:#b48ead;">WHERE</span><span> screen_size IS NOT </span><span style="color:#d08770;">NULL </span><span>AND screen_size != &#39;&#39;;
+</span></code></pre>
+<p>Here the tricky part is splitting the string.
+Because SQLite does not support splitting on a character (or regex), we need to find the first occurence of a string with <code>instr</code> and use <code>substr</code> to take the values between them.
+In this case we'd like <code>5.2</code> from <code>132 mm (5.2 in)</code>, so we'd like the substring between <code>(</code> and <code> in)</code>.</p>
+<p>Then, we can already get our answer:</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">SELECT</span><span> size_in, name, release
+</span><span style="color:#b48ead;">FROM</span><span> with_size
+</span><span style="color:#b48ead;">WHERE</span><span> release &gt;= </span><span style="color:#d08770;">2018
+</span><span style="color:#b48ead;">ORDER BY</span><span> size_in </span><span style="color:#b48ead;">ASC</span><span>, release </span><span style="color:#b48ead;">DESC
+</span><span style="color:#b48ead;">LIMIT </span><span style="color:#d08770;">10</span><span>;
+</span></code></pre>
+<p>And we already have the candidates we can consider buying:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>5|Aquaris E5 4G / Aquaris E5s|[{&quot;E5 4G&quot;: 2014}, {&quot;E5s&quot;: 2015}]
+</span><span>5|Xperia XZ2 Compact|2018-04
+</span><span>5.1|Galaxy S5 LTE Duos (G900FD/MD)|[{&quot;SM-G900FD&quot;: &quot;2014-06&quot;}, {&quot;SM-G900MD&quot;: &quot;2014-07&quot;}]
+</span><span>5.1|Galaxy S5 LTE Duos (G9006W/8W)|[{&quot;SM-G9006W&quot;: &quot;2014-04&quot;}, {&quot;SM-G9008W&quot;: &quot;2014-06&quot;}, {&quot;SM-G9009W&quot;: &quot;2014-04&quot;}]
+</span><span>5.1|Galaxy S5 LTE (G9006V/8V)|[{&quot;SM-G9006V&quot;: &quot;2014-04&quot;}, {&quot;SM-G9008V&quot;: &quot;2014-05&quot;}]
+</span><span>5.2|R5/R5s (International)|[{&quot;R8106&quot;: &quot;2014-12&quot;}, {&quot;R8106s&quot;: &quot;2015-08&quot;}]
+</span><span>5.2|Moto G6 Plus|2018-05
+</span><span>5.2|Xperia XA2|2018-02
+</span><span>5.46|6.1 (2018)|2018
+</span><span>5.5|Le Pro3 / Le Pro3 Elite|[{&quot;Le Pro3&quot;: &quot;2016-10&quot;}, {&quot;Le Pro3 Elite&quot;: &quot;2017-03&quot;}]
+</span></code></pre>
+<p>Some of this is still unparsed data (where <code>release</code> is JSON and not just a date), but we already have some good candidates to look into: <em>Xperia XZ2 Compact</em>, <em>Moto G6 Plus</em>, <em>Xperia XA2</em>.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>Some bash magic and SQLite could make it easy to browse open data that does not have a good search interface.
+It took me around 1 hour to get to this, including learning how to skip characters in bash, how parse JSON and split strings in SQLite.</p>
+</p>
+
+    </div>
+    <div id="about">
+        <h2>About</h2>
+        <p>
+            I do software:
+            data crunching, functional programming, pet projects. This blog is to rant about these.</p>
+<!--        <p> I might also write about music, art, minimalism, math, food.</p>-->
+        <p>Hit me up on <a href="https://twitter.com/GbrHrmnn">Twitter</a> or email
+            bl<span class="spamprotection">HIDDEN TEXT</span>o<!-- abc@def -->g@gabo<!-- @abc.com -->rherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
+        <p id="disclaimer">Of course, opinions are my own, they do not reflect the opinions of any past, present, future, or parallel universe employer.</p>
+    </div>
+</main>
+</body>
+
+</html>
