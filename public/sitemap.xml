@@ -14,4 +14,8 @@
         <loc>https://gaborhermann.org/blog/sqlite-find-a-phone-to-buy/</loc>
         <lastmod>2022-01-09</lastmod>
     </url>
+    <url>
+        <loc>https://gaborhermann.org/blog/use-cicd-for-orchestration/</loc>
+        <lastmod>2022-01-09</lastmod>
+    </url>
 </urlset>

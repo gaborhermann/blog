@@ -94,6 +94,10 @@ pre {
   overflow: auto;
 }
 
+img {
+    width: 100%;
+}
+
 p code, li code {
   background-color: #f0f0f0;
   white-space: pre-wrap;
