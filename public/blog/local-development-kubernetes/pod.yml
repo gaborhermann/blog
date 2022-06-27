@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  restartPolicy: Never
+  containers:
+    - name: mycontainer
+      image: localhost:5000/myimage:latest
+      command: ["/bin/sh", "myscript.sh"]

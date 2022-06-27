@@ -1,6 +1,6 @@
 +++
 title = "Don't use Airflow, use your CI/CD tool for orchestration"
-date = 2022-01-09
+date = 2022-04-02
 +++
 
 Nobody loves Airflow.
