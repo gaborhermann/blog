@@ -27,7 +27,7 @@ It has multiple advantages.
   We deploy Airflow code the same way, no need for special code syncing logic.
 - **Reproducible local development.**
   We can replicate the same setup locally, no need to access a remote DB.
-  See in another blog post [how to set up local development with Kuberenetes](@/blog/local-development-kubernetes/index.md).
+  See in another blog post [how to set up local development with Kuberenetes](@/local-development-kubernetes/index.md).
 
 Of course, there's a price to pay for this simplicity.
 
@@ -57,7 +57,7 @@ So, let's make sure that
 
 # How?
 
-Just to try this setup it's useful to [set up local development with Kuberenetes](@/blog/local-development-kubernetes/index.md) first.
+Just to try this setup it's useful to [set up local development with Kuberenetes](@/local-development-kubernetes/index.md) first.
 
 We're going to use Airflow 1.x, but this should work similarly with Airflow 2.x.
 

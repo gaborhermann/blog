@@ -43,7 +43,7 @@ In our organization we probably have other services running on Kubernetes.
 We deploy Airflow code the same way, no need for special code syncing logic.</li>
 <li><strong>Reproducible local development.</strong>
 We can replicate the same setup locally, no need to access a remote DB.
-See in another blog post <a href="https://gaborhermann.org/blog/local-development-kubernetes/">how to set up local development with Kuberenetes</a>.</li>
+See in another blog post <a href="https://gaborhermann.org/local-development-kubernetes/">how to set up local development with Kuberenetes</a>.</li>
 </ul>
 <p>Of course, there's a price to pay for this simplicity.</p>
 <h1 id="limitations">Limitations</h1>
@@ -71,7 +71,7 @@ It's a good practice regardless not to rely on Airflow DAG history.</li>
 <li>we don't rely on DAG history.</li>
 </ul>
 <h1 id="how">How?</h1>
-<p>Just to try this setup it's useful to <a href="https://gaborhermann.org/blog/local-development-kubernetes/">set up local development with Kuberenetes</a> first.</p>
+<p>Just to try this setup it's useful to <a href="https://gaborhermann.org/local-development-kubernetes/">set up local development with Kuberenetes</a> first.</p>
 <p>We're going to use Airflow 1.x, but this should work similarly with Airflow 2.x.</p>
 <h2 id="base-image">Base image</h2>
 <p>Let's assume we have a Docker registry running at <code>localhost:5000</code>. (In real life it might be something like <code>gcr.io</code>.)</p>
