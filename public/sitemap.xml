@@ -19,6 +19,10 @@
         <lastmod>2022-01-09</lastmod>
     </url>
     <url>
+        <loc>https://gaborhermann.org/blog/standalone-deployment-airflow-kubernetes/</loc>
+        <lastmod>2022-07-02</lastmod>
+    </url>
+    <url>
         <loc>https://gaborhermann.org/blog/use-cicd-for-orchestration/</loc>
         <lastmod>2022-04-02</lastmod>
     </url>

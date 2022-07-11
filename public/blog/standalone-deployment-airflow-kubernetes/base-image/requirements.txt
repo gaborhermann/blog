@@ -1,0 +1,18 @@
+# This is what we actually want to install.
+apache-airflow[gcp,kubernetes]==1.10.15
+# This is needed for Postgres connection
+psycopg2-binary
+
+# But there are breaking changes in some transitive dependencies
+# so we need to pin them.
+# See https://github.com/pallets/markupsafe/issues/284
+markupsafe>=2.0.1,<2.1.0
+# See https://stackoverflow.com/questions/69879246/no-module-named-wtforms-compat
+wtforms>=2.3.3,<2.4.0
+# See https://github.com/sqlalchemy/sqlalchemy/issues/6065
+sqlalchemy>=1.3.20,<1.4.0
+# See https://itsmycode.com/importerror-cannot-import-name-json-from-itsdangerous/
+itsdangerous>=2.0.1,<2.1.0
+
+# We'd like to run tests locally and in CI/CD.
+pytest

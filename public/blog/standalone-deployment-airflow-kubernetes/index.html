@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Gábor Hermann's blog</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="icon" href="images/tree.png">
+</head>
+
+<body>
+<main class="wrapper">
+    <h1 id="title">Gábor Hermann's blog</h1>
+    <div id="hr-tree" class="full-bleed">
+        <div class="hr-tree"></div>
+        <hr class="hr-tree"/>
+    </div>
+    <div id="content">
+        
+<h2>
+    Standalone deployment of Airflow on Kubernetes
+</h2>
+<p><p>We will show how to do a very simple standalone production deployment of Airflow on Kubernetes.</p>
+<ul>
+<li><em>Simple</em>: it's just a Kubernetes spec that runs one Airflow instance.</li>
+<li><em>Standalone</em>: we deploy Airflow together with its database.</li>
+<li><em>Production</em>: works well on production (with some limitations).</li>
+</ul>
+<p>The idea is to have a single Kubernetes Pod of two containers: one Postgres and one Airflow.
+To make the Postgres DB persistent, we deploy this with a StatefulSet and a PersistentVolumeClaim.
+This way we don't lose progress when we restart Airflow in the middle of executing a DAG.</p>
+<h1 id="why">Why?</h1>
+<p>This should work everywhere where Kubernetes is available.
+It has multiple advantages.</p>
+<ul>
+<li><strong>Minimal DB management.</strong>
+We have the database in the same Pod as Airflow.
+It's packaged together, we don't need to do much with it.</li>
+<li><strong>Easy deployment of DAGs.</strong>
+We just build a new Docker image that packages our Airflow code, push it to an image registry, and change the image version in the Kubernetes spec.
+In our organization we probably have other services running on Kubernetes.
+We deploy Airflow code the same way, no need for special code syncing logic.</li>
+<li><strong>Reproducible local development.</strong>
+We can replicate the same setup locally, no need to access a remote DB.
+See in another blog post <a href="https://gaborhermann.org/blog/local-development-kubernetes/">how to set up local development with Kuberenetes</a>.</li>
+</ul>
+<p>Of course, there's a price to pay for this simplicity.</p>
+<h1 id="limitations">Limitations</h1>
+<p>This is intended for folks that don't want to scale horizontally: we will have one instance, it won't be highly available, and we might lose DB state.
+This sounds scary, but if we already follow the best-practices, it should not be a problem at all. </p>
+<ul>
+<li><strong>Only one instance: does not scale.</strong>
+We can add higher amount of resources (CPU, memory), but only as much as the Kubernetes cluster allows (probably depending on biggest node in the cluster).
+This solution by design does not scale to multiple instances.
+That said, one instance should have enough resources in most use-cases: Airflow should only orchestrate, the real heavy-lifting should run elsewhere.</li>
+<li><strong>Not highly available: restart will make tasks fail.</strong>
+This should be okay if we run the heavy-lifting elsewhere and tasks can resume.
+We won't lose the complete DAG progress, because we persist the Airflow DB.
+E.g. if <a href="https://medium.com/bluecore-engineering/were-all-using-airflow-wrong-and-how-to-fix-it-a56f14cb0753">we only use KubernetesPodOperator</a> the actual heavy-lifting will continue in that separate Kubernetes Pod while we restart Airflow.
+Then, after Airflow has restarted, the KubernetesPodOperator will re-attach to the already running Pod.</li>
+<li><strong>Might lose DB state.</strong>
+We don't backup the Postgres DB, so we might lose all the data there if the persistent volume where we store Postgres data is lost (in a very improbable scenario).
+This is not really a problem if we don't rely on Airflow DAG history: we don't do backfills, a single DAG run will fill up history if needed.
+It's a good practice regardless not to rely on Airflow DAG history.</li>
+</ul>
+<p>So, let's make sure that</p>
+<ul>
+<li>we have enough resources for Airflow,</li>
+<li>we only use resumable Airflow Operators, and</li>
+<li>we don't rely on DAG history.</li>
+</ul>
+<h1 id="how">How?</h1>
+<p>Just to try this setup it's useful to <a href="https://gaborhermann.org/blog/local-development-kubernetes/">set up local development with Kuberenetes</a> first.</p>
+<p>We're going to use Airflow 1.x, but this should work similarly with Airflow 2.x.</p>
+<h2 id="base-image">Base image</h2>
+<p>Let's assume we have a Docker registry running at <code>localhost:5000</code>. (In real life it might be something like <code>gcr.io</code>.)</p>
+<p>We should have an Airflow base Docker image that only has Airflow.
+We can use the <a href="https://hub.docker.com/r/apache/airflow">official Airflow image</a> or we can build our own.
+To build our own, we will need these two files:</p>
+<details>
+<summary>View Dockerfile</summary>
+<pre data-lang="Dockerfile" style="background-color:#2b303b;color:#c0c5ce;" class="language-Dockerfile "><code class="language-Dockerfile" data-lang="Dockerfile"><span style="color:#b48ead;">FROM</span><span> python:3.7-slim-buster
+</span><span>
+</span><span style="color:#65737e;"># This is to install gcc, etc. that&#39;s needed by Airflow.
+</span><span style="color:#b48ead;">RUN </span><span>export DEBIAN_FRONTEND=noninteractive &amp;&amp; \
+</span><span>apt-get update &amp;&amp; apt-get -y upgrade &amp;&amp; \
+</span><span>apt-get -y install --no-install-recommends gcc python3-dev build-essential &amp;&amp; \
+</span><span>apt-get clean &amp;&amp; \
+</span><span>rm -rf /var/lib/apt/lists/*
+</span><span>
+</span><span style="color:#b48ead;">RUN </span><span>pip install --upgrade pip
+</span><span>
+</span><span style="color:#b48ead;">RUN </span><span>useradd -m airflow
+</span><span style="color:#b48ead;">WORKDIR </span><span>/home/airflow
+</span><span>
+</span><span style="color:#b48ead;">ENV </span><span>AIRFLOW_HOME /home/airflow
+</span><span>
+</span><span style="color:#b48ead;">COPY</span><span> base-image/requirements.txt .
+</span><span style="color:#b48ead;">RUN </span><span>pip install -r requirements.txt
+</span><span>
+</span><span style="color:#b48ead;">USER </span><span>airflow
+</span><span>
+</span><span>ENTRYPOINT []
+</span><span>CMD []
+</span><span>
+</span><span style="color:#65737e;">### from here on app specific
+</span><span>
+</span><span style="color:#b48ead;">COPY</span><span> dags dags
+</span></code></pre>
+</details>
+<details>
+<summary>View requirements.txt</summary>
+<pre data-lang="requirements.txt" style="background-color:#2b303b;color:#c0c5ce;" class="language-requirements.txt "><code class="language-requirements.txt" data-lang="requirements.txt"><span># This is what we actually want to install.
+</span><span>apache-airflow[gcp,kubernetes]==1.10.15
+</span><span># This is needed for Postgres connection
+</span><span>psycopg2-binary
+</span><span>
+</span><span># But there are breaking changes in some transitive dependencies
+</span><span># so we need to pin them.
+</span><span># See https://github.com/pallets/markupsafe/issues/284
+</span><span>markupsafe&gt;=2.0.1,&lt;2.1.0
+</span><span># See https://stackoverflow.com/questions/69879246/no-module-named-wtforms-compat
+</span><span>wtforms&gt;=2.3.3,&lt;2.4.0
+</span><span># See https://github.com/sqlalchemy/sqlalchemy/issues/6065
+</span><span>sqlalchemy&gt;=1.3.20,&lt;1.4.0
+</span><span># See https://itsmycode.com/importerror-cannot-import-name-json-from-itsdangerous/
+</span><span>itsdangerous&gt;=2.0.1,&lt;2.1.0
+</span></code></pre>
+</details>
+<p>And execute</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">docker</span><span> build</span><span style="color:#bf616a;"> -t</span><span> localhost:5000/airflow:latest .
+</span></code></pre>
+<h2 id="building-an-image-with-our-code">Building an image with our code</h2>
+<p>Let's say we have a very simple dummy DAG in <code>dags/dummy.py</code>:</p>
+<pre data-lang="python" style="background-color:#2b303b;color:#c0c5ce;" class="language-python "><code class="language-python" data-lang="python"><span style="color:#b48ead;">from </span><span>airflow </span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">DAG
+</span><span style="color:#b48ead;">from </span><span>airflow.utils </span><span style="color:#b48ead;">import </span><span>timezone
+</span><span style="color:#b48ead;">from </span><span>airflow.operators.dummy_operator </span><span style="color:#b48ead;">import </span><span>DummyOperator
+</span><span>
+</span><span>dag = </span><span style="color:#bf616a;">DAG</span><span>(
+</span><span>    </span><span style="color:#bf616a;">dag_id</span><span>=&quot;</span><span style="color:#a3be8c;">dummy</span><span>&quot;,
+</span><span>    </span><span style="color:#bf616a;">schedule_interval</span><span>=</span><span style="color:#d08770;">None</span><span>,
+</span><span>    </span><span style="color:#bf616a;">catchup</span><span>=</span><span style="color:#d08770;">False</span><span>,
+</span><span>    </span><span style="color:#bf616a;">default_args</span><span>=</span><span style="color:#bf616a;">dict</span><span>(</span><span style="color:#bf616a;">start_date</span><span>=timezone.</span><span style="color:#bf616a;">datetime</span><span>(</span><span style="color:#d08770;">2022</span><span>, </span><span style="color:#d08770;">1</span><span>, </span><span style="color:#d08770;">1</span><span>)),
+</span><span>)
+</span><span>
+</span><span style="color:#bf616a;">DummyOperator</span><span>(</span><span style="color:#bf616a;">task_id</span><span>=&quot;</span><span style="color:#a3be8c;">dummy</span><span>&quot;, </span><span style="color:#bf616a;">dag</span><span>=dag)
+</span></code></pre>
+<p>We can package this in a Docker image from our base image with this <code>Dockerfile</code>:</p>
+<pre data-lang="Dockefile" style="background-color:#2b303b;color:#c0c5ce;" class="language-Dockefile "><code class="language-Dockefile" data-lang="Dockefile"><span>FROM localhost:5000/airflow:latest
+</span><span>
+</span><span>COPY dags dags
+</span></code></pre>
+<p>To build and push it:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">docker</span><span> build</span><span style="color:#bf616a;"> -t</span><span> localhost:5000/dummydag:latest .
+</span><span style="color:#bf616a;">docker</span><span> push localhost:5000/dummydag:latest
+</span></code></pre>
+<h2 id="kubernetes-deployment-with-statefulset">Kubernetes deployment with StatefulSet</h2>
+<p>We can define a Kubernetes <a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/">StatefulSet</a> with Airflow and Postgres:</p>
+<ul>
+<li><strong>Airflow and Postgres containers in the same Pod.</strong>
+This makes sure self-contained deployment and they can easily communicate because they are &quot;on the same machine&quot;.</li>
+<li><strong>StatefulSet with a single instance.</strong>
+This gives us easy deploying and restarting very similarly to a <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/">Deployment</a>. 
+The big difference is that StatefulSet also allows us to use persistent storage:
+if a Pod gets killed the restarted Pod will be on the same Node.</li>
+<li><strong>Persistent Volume mounted to Postgres container.</strong>
+Persistent storage for our Airflow DB to not lose data between deployments.
+Note that we can only use <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes/">Persistent Volumes</a> because we use StatefulSet.</li>
+</ul>
+<p>We define all of this in a Kubernetes spec file <code>airflow.yml</code>:</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">apiVersion</span><span>: </span><span style="color:#a3be8c;">apps/v1
+</span><span style="color:#bf616a;">kind</span><span>: </span><span style="color:#a3be8c;">StatefulSet
+</span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>  </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">airflow
+</span><span style="color:#bf616a;">spec</span><span>:
+</span><span>  </span><span style="color:#bf616a;">serviceName</span><span>: &quot;</span><span style="color:#a3be8c;">my-airflow-service</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">selector</span><span>:
+</span><span>    </span><span style="color:#bf616a;">matchLabels</span><span>:
+</span><span>      </span><span style="color:#bf616a;">my-app-label</span><span>: </span><span style="color:#a3be8c;">airflow-app
+</span><span>  </span><span style="color:#65737e;"># Claiming a Persistent Volume for our Pod.
+</span><span>  </span><span style="color:#bf616a;">volumeClaimTemplates</span><span>:
+</span><span>    - </span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>        </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">postgres-volume
+</span><span>      </span><span style="color:#bf616a;">spec</span><span>:
+</span><span>        </span><span style="color:#65737e;"># Only one Pod should read and write it.
+</span><span>        </span><span style="color:#bf616a;">accessModes</span><span>: [&quot;</span><span style="color:#a3be8c;">ReadWriteOnce</span><span>&quot;]
+</span><span>        </span><span style="color:#bf616a;">resources</span><span>:
+</span><span>          </span><span style="color:#bf616a;">requests</span><span>:
+</span><span>            </span><span style="color:#bf616a;">storage</span><span>: </span><span style="color:#a3be8c;">1Gi
+</span><span>  </span><span style="color:#bf616a;">template</span><span>:
+</span><span>    </span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>      </span><span style="color:#bf616a;">labels</span><span>:
+</span><span>        </span><span style="color:#bf616a;">my-app-label</span><span>: </span><span style="color:#a3be8c;">airflow-app
+</span><span>    </span><span style="color:#bf616a;">spec</span><span>:
+</span><span>      </span><span style="color:#bf616a;">containers</span><span>:
+</span><span>        </span><span style="color:#65737e;"># Postgres container with dummy user and password defined.
+</span><span>        - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">postgres
+</span><span>          </span><span style="color:#bf616a;">image</span><span>: </span><span style="color:#a3be8c;">postgres:9
+</span><span>          </span><span style="color:#bf616a;">env</span><span>:
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">POSTGRES_USER
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: </span><span style="color:#a3be8c;">airflow_user
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">POSTGRES_PASSWORD
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: </span><span style="color:#a3be8c;">airflow_pass
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">POSTGRES_DB
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: </span><span style="color:#a3be8c;">airflow_db
+</span><span>          </span><span style="color:#bf616a;">volumeMounts</span><span>:
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">postgres-volume
+</span><span>              </span><span style="color:#65737e;"># This is the default path where Postgres stores data.
+</span><span>              </span><span style="color:#bf616a;">mountPath</span><span>: </span><span style="color:#a3be8c;">/var/lib/postgresql/data
+</span><span>        </span><span style="color:#65737e;"># Airflow container with our code.
+</span><span>        - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">airflow
+</span><span>          </span><span style="color:#65737e;"># We use the image that we built.
+</span><span>          </span><span style="color:#bf616a;">image</span><span>: </span><span style="color:#a3be8c;">localhost:5000/dummydag:latest
+</span><span>          </span><span style="color:#bf616a;">command</span><span>: [&#39;</span><span style="color:#a3be8c;">/bin/bash</span><span>&#39;,
+</span><span>                    &#39;</span><span style="color:#a3be8c;">-c</span><span>&#39;,
+</span><span>                  </span><span style="color:#65737e;"># We need to start both the Web UI and the scheduler.
+</span><span>                    &#39;</span><span style="color:#a3be8c;">airflow upgradedb &amp;&amp; { airflow webserver -p 8080 &amp; } &amp;&amp; airflow scheduler</span><span>&#39;]
+</span><span>          </span><span style="color:#bf616a;">env</span><span>:
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">AIRFLOW_HOME
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: &#39;</span><span style="color:#a3be8c;">/home/airflow</span><span>&#39;
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">AIRFLOW__CORE__LOAD_EXAMPLES
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: &#39;</span><span style="color:#a3be8c;">false</span><span>&#39;
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">AIRFLOW__CORE__EXECUTOR
+</span><span>              </span><span style="color:#65737e;"># Use an executor that can actually run tasks in parallel.
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: &#39;</span><span style="color:#a3be8c;">LocalExecutor</span><span>&#39;
+</span><span>            - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">AIRFLOW__CORE__SQL_ALCHEMY_CONN
+</span><span>              </span><span style="color:#65737e;"># We use the same user and password as defined above.
+</span><span>              </span><span style="color:#bf616a;">value</span><span>: &#39;</span><span style="color:#a3be8c;">postgresql+psycopg2://airflow_user:airflow_pass@localhost:5432/airflow_db</span><span>&#39;
+</span></code></pre>
+<p>Then we can deploy it:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> apply</span><span style="color:#bf616a;"> -f</span><span> airflow.yml
+</span></code></pre>
+<p>And we can see the StatefulSet and Pod.</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> get statefulsets
+</span><span style="color:#bf616a;">kubectl</span><span> get pods
+</span></code></pre>
+<p>We can check Airflow Web UI with port-forwarding:</p>
+<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> port-forward pod/airflow-0 8080:8080
+</span></code></pre>
+<p>Then go to http://localhost:8080 to see the Web UI.</p>
+<h1 id="going-further">Going further</h1>
+<p>This is a very basic setup, we can improve it:</p>
+<ul>
+<li><strong>Deploying new DAGs.</strong>
+How do we add and deploy new code?
+We can create Docker images with different versions (e.g. <code>localhost:5000/dummydag:123</code> instead of <code>localhost:5000/dummydag:latest</code>) and use them in <code>airflow.yml</code> and call <code>kubectl apply -f airflow.yml</code> again.
+To automate this, it might require passing the version and templating <code>airflow.yml</code>.
+We probably need this in our CI/CD setup.</li>
+<li><strong>Expose as Service.</strong>
+We could expose the Web UI of Airflow as a <a href="https://kubernetes.io/docs/concepts/services-networking/service/">Service</a>.</li>
+<li><strong>Store password as a Secret.</strong>
+Currently, we have a very dummy weak password for Postgres.
+We could improve security by generating a (cryptographically secure) random password and storing it as a <a href="https://kubernetes.io/docs/concepts/configuration/secret/">Secret</a>.</li>
+<li><strong>Use Postgres proxy.</strong>
+Postgres doesn't handle multiple connections well.
+Adding a proxy container such as <a href="https://www.pgbouncer.org/">pgbouncer</a> can help performance.</li>
+</ul>
+</p>
+
+    </div>
+    <div id="about">
+        <h2>About</h2>
+        <p>
+            I do software:
+            data crunching, functional programming, pet projects. This blog is to rant about these.</p>
+<!--        <p> I might also write about music, art, minimalism, math, food.</p>-->
+        <p>Hit me up on <a href="https://twitter.com/GbrHrmnn">Twitter</a> or email
+            bl<span class="spamprotection">HIDDEN TEXT</span>o<!-- abc@def -->g@gabo<!-- @abc.com -->rherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
+        <p id="disclaimer">Of course, opinions are my own, they do not reflect the opinions of any past, present, future, or parallel universe employer.</p>
+    </div>
+</main>
+</body>
+
+</html>

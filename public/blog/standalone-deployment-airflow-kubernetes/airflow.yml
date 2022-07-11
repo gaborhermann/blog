@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: airflow
+spec:
+  serviceName: "my-airflow-service"
+  selector:
+    matchLabels:
+      my-app-label: airflow-app
+  # Claiming a Persistent Volume for our Pod.
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-volume
+      spec:
+        # Only one Pod should read and write it.
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+  template:
+    metadata:
+      labels:
+        my-app-label: airflow-app
+    spec:
+      containers:
+        # Postgres container with dummy user and password defined.
+        - name: postgres
+          image: postgres:9
+          env:
+            - name: POSTGRES_USER
+              value: airflow_user
+            - name: POSTGRES_PASSWORD
+              value: airflow_pass
+            - name: POSTGRES_DB
+              value: airflow_db
+          volumeMounts:
+            - name: postgres-volume
+              # This is the default path where Postgres stores data.
+              mountPath: /var/lib/postgresql/data
+        # Airflow container with our code.
+        - name: airflow
+          # We use the image that we built.
+          image: localhost:5000/dummydag:latest
+          command: ['/bin/bash',
+                    '-c',
+            # We need to start both the Web UI and the scheduler.
+                    'airflow upgradedb && { airflow webserver -p 8080 & } && airflow scheduler']
+          env:
+            - name: AIRFLOW_HOME
+              value: '/home/airflow'
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: 'false'
+            - name: AIRFLOW__CORE__EXECUTOR
+              # Use an executor that can actually run tasks in parallel.
+              value: 'LocalExecutor'
+            - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+              # We use the same user and password as defined above.
+              value: 'postgresql+psycopg2://airflow_user:airflow_pass@localhost:5432/airflow_db'
