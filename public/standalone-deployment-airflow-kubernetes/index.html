@@ -147,9 +147,9 @@ To build our own, we will need these two files:</p>
 </span><span style="color:#bf616a;">DummyOperator</span><span>(</span><span style="color:#bf616a;">task_id</span><span>=&quot;</span><span style="color:#a3be8c;">dummy</span><span>&quot;, </span><span style="color:#bf616a;">dag</span><span>=dag)
 </span></code></pre>
 <p>We can package this in a Docker image from our base image with this <code>Dockerfile</code>:</p>
-<pre data-lang="Dockefile" style="background-color:#2b303b;color:#c0c5ce;" class="language-Dockefile "><code class="language-Dockefile" data-lang="Dockefile"><span>FROM localhost:5000/airflow:latest
+<pre data-lang="Dockerfile" style="background-color:#2b303b;color:#c0c5ce;" class="language-Dockerfile "><code class="language-Dockerfile" data-lang="Dockerfile"><span style="color:#b48ead;">FROM</span><span> localhost:5000/airflow:latest
 </span><span>
-</span><span>COPY dags dags
+</span><span style="color:#b48ead;">COPY</span><span> dags dags
 </span></code></pre>
 <p>To build and push it:</p>
 <pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">docker</span><span> build</span><span style="color:#bf616a;"> -t</span><span> localhost:5000/dummydag:latest .

@@ -151,7 +151,7 @@ DummyOperator(task_id="dummy", dag=dag)
 
 We can package this in a Docker image from our base image with this `Dockerfile`:
 
-```Dockefile
+```Dockerfile
 FROM localhost:5000/airflow:latest
 
 COPY dags dags
