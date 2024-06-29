@@ -18,22 +18,23 @@
     </div>
     <div id="content">
         
+
 <h2>
-    Don&#x27;t use Airflow, use your CI&#x2F;CD tool for orchestration
+    Don&#39;t use Airflow, use your CI/CD tool for orchestration
 </h2>
 <p><p>Nobody loves Airflow.
-It's pretty cool, but there's so much pain.
+It&rsquo;s pretty cool, but there&rsquo;s so much pain.
 So people come up with new tools like Perfect, Dagster, Flyte, Argo.
 These new tools will have new pains. I think we can actually avoid the new pains.
 We can use our good old CI/CD tooling like GitLab CI for orchestration.</p>
 <p>No offense.
 Huge thanks and respect to the folks that build Airflow and other orchestration tools.
-I've been using Airflow in production for a few years and it saved me from flaky bash scripts running as cronjobs.
+I&rsquo;ve been using Airflow in production for a few years and it saved me from flaky bash scripts running as cronjobs.
 I just think we have a better alternative.</p>
-<p>I'm going to schedule a data pipeline with GitLab CI to demonstrate how to use it for orchestration.
+<p>I&rsquo;m going to schedule a data pipeline with GitLab CI to demonstrate how to use it for orchestration.
 You can probably do the same with GitHub Actions, Jenkins, Travis, or similar (if not, call me out on it).</p>
 <h1 id="all-you-need-is-gitlab-ci">All you need is GitLab CI</h1>
-<p>What do we need for &quot;orchestration&quot;?</p>
+<p>What do we need for &ldquo;orchestration&rdquo;?</p>
 <ul>
 <li><strong>DAG</strong> (directed acyclic graph) of dependencies.</li>
 <li><strong>Schedule</strong>/cron.</li>
@@ -47,7 +48,7 @@ You can probably do the same with GitHub Actions, Jenkins, Travis, or similar (i
 </li>
 <li><strong>Alerts</strong> on failure.</li>
 </ul>
-<p>I don't think we really need more and GitLab CI can do all of this.</p>
+<p>I don&rsquo;t think we really need more and GitLab CI can do all of this.</p>
 <h1 id="example-setup">Example setup</h1>
 <p>We will</p>
 <ul>
@@ -57,111 +58,107 @@ You can probably do the same with GitHub Actions, Jenkins, Travis, or similar (i
 <li><strong>schedule data pipeline</strong> in GitLab web UI, and</li>
 <li><strong>use web UI</strong> to trigger pipeline, view DAG, logs.</li>
 </ul>
-<h4 id="start-with-a-ci-cd-pipeline">Start with a CI/CD pipeline</h4>
-<p>Let's say we already use GitLab CI and have a CI/CD pipeline defined in <code>.gitlab-ci.yml</code>.</p>
-<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">build</span><span>:
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">echo &quot;Let&#39;s do some building.&quot;
-</span><span>
-</span><span style="color:#bf616a;">test</span><span>:
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">build
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">echo &quot;Let&#39;s run all the unit tests.&quot;
-</span></code></pre>
-<p>GitLab will run this pipeline when we <code>git push</code>.
+<h4 id="start-with-a-cicd-pipeline">Start with a CI/CD pipeline</h4>
+<p>Let&rsquo;s say we already use GitLab CI and have a CI/CD pipeline defined in <code>.gitlab-ci.yml</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">build</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">echo &#34;Let&#39;s do some building.&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">test</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">build</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">echo &#34;Let&#39;s run all the unit tests.&#34;</span>
+</span></span></code></pre></div><p>GitLab will run this pipeline when we <code>git push</code>.
 It will first run <code>build</code> then <code>test</code> because we defined that <code>test</code> <code>needs</code> <code>build</code>.</p>
-<p><img src="ci_dag2.png" alt="" /></p>
-<p>This pipeline is already a (very simple) DAG, but it's not the data pipeline that we want to schedule.</p>
+<p><img src="ci_dag2.png" alt=""></p>
+<p>This pipeline is already a (very simple) DAG, but it&rsquo;s not the data pipeline that we want to schedule.</p>
 <h4 id="define-a-data-pipeline">Define a data pipeline</h4>
-<p>Let's say we'd like to do something like the <a href="https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html">Airflow tutorial</a>: add some commands, define dependencies between them.</p>
-<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">print_date</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">date
-</span><span>
-</span><span style="color:#bf616a;">sleep</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">print_date
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">sleep 5
-</span><span>  </span><span style="color:#bf616a;">retry</span><span>: </span><span style="color:#d08770;">2
-</span><span>
-</span><span style="color:#bf616a;">script</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">image</span><span>: </span><span style="color:#a3be8c;">python:3-slim
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">print_date
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">python my_script.py
-</span></code></pre>
-<p>We define three jobs (<code>print_date</code>, <code>sleep</code>, and <code>script</code>) and define what they should do (<code>script</code> keyword).
+<p>Let&rsquo;s say we&rsquo;d like to do something like the <a href="https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html">Airflow tutorial</a>: add some commands, define dependencies between them.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">print_date</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">date</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">sleep</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">print_date</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">sleep 5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">retry</span>: <span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">image</span>: <span style="color:#ae81ff">python:3-slim</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">print_date</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">python my_script.py</span>
+</span></span></code></pre></div><p>We define three jobs (<code>print_date</code>, <code>sleep</code>, and <code>script</code>) and define what they should do (<code>script</code> keyword).
 We define the dependencies between them with the <code>needs</code> keyword: both <code>sleep</code> and <code>script</code> depends on <code>print_date</code>.
 We can even define if we want to <code>retry</code> and how many times (similarly to Airflow <code>retries</code>).
 We already have a DAG.</p>
-<p>A fun fact is that we don't even have to deploy in this setup.
+<p>A fun fact is that we don&rsquo;t even have to deploy in this setup.
 The <code>script</code> Job can run a <code>python</code> Docker image and <code>my_script.py</code> is already fetched from Git, so we can safely execute <code>python my_script.py</code>.
-In simple cases where we have a scripting language with no special dependencies, we can &quot;deploy&quot; can by merging to the main git branch.</p>
+In simple cases where we have a scripting language with no special dependencies, we can &ldquo;deploy&rdquo; can by merging to the main git branch.</p>
 <h4 id="run-the-data-pipeline-separately">Run the data pipeline separately</h4>
 <p>We can keep the CI/CD and data pipelines separate by using an environment variable and <code>rules</code>.
 When we run a GitLab CI pipeline, we can define environment variables to use.
-We can also define when to run a GitLab CI job based on environment variable with the <code>rules</code> keyword. </p>
+We can also define when to run a GitLab CI job based on environment variable with the <code>rules</code> keyword.</p>
 <p>E.g.</p>
-<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span></code></pre>
-<p>This means the GitLab CI Job will only run if the <code>PIPELINE_NAME</code> environment variable is set to <code>my_pipeline</code>.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span></code></pre></div><p>This means the GitLab CI Job will only run if the <code>PIPELINE_NAME</code> environment variable is set to <code>my_pipeline</code>.
 We can extend this to the full example.</p>
-<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#65737e;"># CI/CD pipeline
-</span><span style="color:#bf616a;">build</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME</span><span>&#39;
-</span><span>      </span><span style="color:#bf616a;">when</span><span>: </span><span style="color:#a3be8c;">never
-</span><span>    - </span><span style="color:#bf616a;">when</span><span>: </span><span style="color:#a3be8c;">on_success
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">echo &quot;Let&#39;s do some building.&quot;
-</span><span>
-</span><span style="color:#bf616a;">test</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME</span><span>&#39;
-</span><span>      </span><span style="color:#bf616a;">when</span><span>: </span><span style="color:#a3be8c;">never
-</span><span>    - </span><span style="color:#bf616a;">when</span><span>: </span><span style="color:#a3be8c;">on_success
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">build
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">echo &quot;Let&#39;s run all the unit tests.&quot;
-</span><span>
-</span><span style="color:#65737e;"># Data pipeline
-</span><span style="color:#bf616a;">print_date</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">date
-</span><span>
-</span><span style="color:#bf616a;">sleep</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">print_date
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">sleep 5
-</span><span>  </span><span style="color:#bf616a;">retry</span><span>: </span><span style="color:#d08770;">2
-</span><span>
-</span><span style="color:#bf616a;">script</span><span>:
-</span><span>  </span><span style="color:#bf616a;">rules</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">if</span><span>: &#39;</span><span style="color:#a3be8c;">$PIPELINE_NAME == &quot;my_pipeline&quot;</span><span>&#39;
-</span><span>  </span><span style="color:#bf616a;">image</span><span>: </span><span style="color:#a3be8c;">python:3-slim
-</span><span>  </span><span style="color:#bf616a;">needs</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">print_date
-</span><span>  </span><span style="color:#bf616a;">script</span><span>:
-</span><span>    - </span><span style="color:#a3be8c;">python my_script.py
-</span></code></pre>
-<p>The Jobs for the CI/CD pipeline will only run if <code>PIPELINE_NAME</code> is not set, the Jobs for the data pipeline will only run if <code>PIPELINE_NAME</code> is set to <code>my_pipeline</code>.
-So there's no way for CI/CD and data jobs to run in the same pipeline.
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># CI/CD pipeline</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">build</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME&#39;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">when</span>: <span style="color:#ae81ff">never</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">when</span>: <span style="color:#ae81ff">on_success</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">echo &#34;Let&#39;s do some building.&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">test</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME&#39;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">when</span>: <span style="color:#ae81ff">never</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">when</span>: <span style="color:#ae81ff">on_success</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">build</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">echo &#34;Let&#39;s run all the unit tests.&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Data pipeline</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">print_date</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">date</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">sleep</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">print_date</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">sleep 5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">retry</span>: <span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">if</span>: <span style="color:#e6db74">&#39;$PIPELINE_NAME == &#34;my_pipeline&#34;&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">image</span>: <span style="color:#ae81ff">python:3-slim</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">needs</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">print_date</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">python my_script.py</span>
+</span></span></code></pre></div><p>The Jobs for the CI/CD pipeline will only run if <code>PIPELINE_NAME</code> is not set, the Jobs for the data pipeline will only run if <code>PIPELINE_NAME</code> is set to <code>my_pipeline</code>.
+So there&rsquo;s no way for CI/CD and data jobs to run in the same pipeline.
 We can only run them separately.</p>
 <h4 id="schedule-the-data-pipeline">Schedule the data pipeline</h4>
 <p>We can go to <code>Pipelines</code> / <code>Schedules</code> in GitLab web UI.
@@ -172,12 +169,12 @@ There we can add a new schedule:</p>
 </ul>
 <h4 id="use-web-ui">Use web UI</h4>
 <p>Once we setup the schedule, we can see all scheduled pipelines in <code>Pipelines</code> / <code>Schedules</code>.</p>
-<p><img src="ci_schedules.png" alt="" /></p>
+<p><img src="ci_schedules.png" alt=""></p>
 <p>We can see the latest run, if it was successful (green tick), when the next schedule is, and run the pipeline on demand (play button).</p>
 <p>We can also see the DAG if we click on the pipeline we and go to the <code>Job dependencies</code> page.</p>
-<p><img src="ci_dag1.png" alt="" /></p>
+<p><img src="ci_dag1.png" alt=""></p>
 <p>If we click on individual jobs, we can also see the logs for them. E.g. for <code>print_date</code> we see this:</p>
-<p><img src="ci_logs.png" alt="" /></p>
+<p><img src="ci_logs.png" alt=""></p>
 <p>We can also setup alerting in <code>Settings</code> / <code>Integrations</code>.
 E.g. send a chat message to Slack if pipeline failed.
 I leave this as an exercise to the reader.</p>
@@ -198,38 +195,38 @@ I leave this as an exercise to the reader.</p>
 </ul>
 <p>You can also find all my code <a href="https://gitlab.com/ghermann/ci_cd_as_orchestrator">here</a>.</p>
 <h1 id="sounds-good-but-i-actually-need-more">Sounds good, but I actually need more</h1>
-<p>Do you miss something? I'm curious, please write to me about it (I'm always happy to receive email from humans).</p>
-<p>There are some aspects we haven't covered fully, but I'd know where to start.</p>
-<h4 id="i-d-like-to-run-it-locally">I'd like to run it locally.</h4>
+<p>Do you miss something? I&rsquo;m curious, please write to me about it (I&rsquo;m always happy to receive email from humans).</p>
+<p>There are some aspects we haven&rsquo;t covered fully, but I&rsquo;d know where to start.</p>
+<h4 id="id-like-to-run-it-locally">I&rsquo;d like to run it locally.</h4>
 <p><a href="https://bagong.gitlab.io/posts/run-gitlab-ci-locally/">We can run a job locally</a> by running GitLab runner locally and executing e.g. <code>gitlab-runner exec docker print_date</code>.
 Running full pipeline <a href="https://gitlab.com/gitlab-org/gitlab-runner/-/issues/2797">is not possible</a> at the time of writing, but might be possible in the future.</p>
-<h4 id="i-need-to-process-production-data-but-ci-cd-jobs-can-t-access-production-data">I need to process production data, but CI/CD jobs can't access production data.</h4>
-<p>Use CI/CD to trigger only run a container on production and follow the logs. 
-As an example, GitLab CI Jobs might run on a separate Kubernetes cluster than production with service accounts that don't have access to production data.
+<h4 id="i-need-to-process-production-data-but-cicd-jobs-cant-access-production-data">I need to process production data, but CI/CD jobs can&rsquo;t access production data.</h4>
+<p>Use CI/CD to trigger only run a container on production and follow the logs.
+As an example, GitLab CI Jobs might run on a separate Kubernetes cluster than production with service accounts that don&rsquo;t have access to production data.
 There are good security reasons for this.
-Still we should be able to deploy a job from CI/CD (the D stands for Deployment), so I don't see any security reason why we can't trigger one.
-If I'm wrong, please call me out on this, I'm not a security expert.
+Still we should be able to deploy a job from CI/CD (the D stands for Deployment), so I don&rsquo;t see any security reason why we can&rsquo;t trigger one.
+If I&rsquo;m wrong, please call me out on this, I&rsquo;m not a security expert.
 I might write a separate blogpost about this.</p>
-<h4 id="i-d-like-to-define-pipeline-in-a-pythonic-way-just-like-in-airflow-jinja-templates-are-cool">I'd like to define pipeline in a Pythonic way, just like in Airflow. Jinja templates are cool.</h4>
+<h4 id="id-like-to-define-pipeline-in-a-pythonic-way-just-like-in-airflow-jinja-templates-are-cool">I&rsquo;d like to define pipeline in a Pythonic way, just like in Airflow. Jinja templates are cool.</h4>
 <p>I think Jinja templates are a bit too much magic.
-If we'd really like to define pipelines with in a programming language, we could generate <code>.gitlab-ci.yml</code> with a simple Python program (without any dependencies).
+If we&rsquo;d really like to define pipelines with in a programming language, we could generate <code>.gitlab-ci.yml</code> with a simple Python program (without any dependencies).
 I might write a separate blogpost about this.</p>
-<h4 id="i-need-a-datestamp-just-like-ds-in-airflow">I need a datestamp, just like <code>{{ ds }}</code> in Airflow</h4>
+<h4 id="i-need-a-datestamp-just-like--ds--in-airflow">I need a datestamp, just like <code>{{ ds }}</code> in Airflow</h4>
 <p>We can get current time easily in any programming language.
 Or use the predefined <code>CI_PIPELINE_CREATED_AT</code> environment variable of GitLab CI.
-In my opinion using referring to the running time when the job is executed is way more intuitive than &quot;beginning of schedule period&quot; as in Airflow.</p>
+In my opinion using referring to the running time when the job is executed is way more intuitive than &ldquo;beginning of schedule period&rdquo; as in Airflow.</p>
 <h4 id="i-need-metrics-about-job-running-times-etc">I need metrics about job running times, etc.</h4>
 <p>GitLab CI gives us basic pipeline duration metrics.
 For more, we could records anything and load it into the OLAP DB we already use (e.g. Snowflake, BigQuery, Redshift) and monitor it with a dashboarding tool we already use (e.g. Tableau).
 Again, this might be another blogpost.</p>
-<h4 id="i-d-like-to-run-the-same-pipeline-for-many-days-historically">I'd like to run the same pipeline for many days historically.</h4>
+<h4 id="id-like-to-run-the-same-pipeline-for-many-days-historically">I&rsquo;d like to run the same pipeline for many days historically.</h4>
 <p>Trigger many pipelines programatically using GitLab CI and set <code>CI_PIPELINE_CREATED_AT</code> environment variable (<a href="https://docs.gitlab.com/ee/ci/variables/index.html#cicd-variable-precedence">trigger variables have higher precedence than predefined ones</a>).
-In my opinion it's always better to define a pipeline (Airflow DAG) without needing to run historically, even if it's incremental (but this might be another blogpost, again).</p>
-<h4 id="i-d-like-to-see-historical-view">I'd like to see historical view.</h4>
+In my opinion it&rsquo;s always better to define a pipeline (Airflow DAG) without needing to run historically, even if it&rsquo;s incremental (but this might be another blogpost, again).</p>
+<h4 id="id-like-to-see-historical-view">I&rsquo;d like to see historical view.</h4>
 <p>Not the best overview, but we can see the Pipeline and Job history in GitLab CI Web UI.
-Maybe we can also use <code>environment</code> tag in <code>.gitlab-ci.yml</code> then look at the Deployments page Web UI. 
-Again, don't do historical runs and then we don't need this.</p>
-<h4 id="i-d-like-to-define-the-schedule-time-in-code">I'd like to define the schedule time in code</h4>
+Maybe we can also use <code>environment</code> tag in <code>.gitlab-ci.yml</code> then look at the Deployments page Web UI.
+Again, don&rsquo;t do historical runs and then we don&rsquo;t need this.</p>
+<h4 id="id-like-to-define-the-schedule-time-in-code">I&rsquo;d like to define the schedule time in code</h4>
 <p>We could use GitLab REST API to define/edit Scheduled Pipelines.
 Again, might be another blogpost.</p>
 </p>
@@ -240,9 +237,8 @@ Again, might be another blogpost.</p>
         <p>
             I do software:
             data crunching, functional programming, pet projects. This blog is to rant about these.</p>
-<!--        <p> I might also write about music, art, minimalism, math, food.</p>-->
         <p>Hit me up on <a href="https://twitter.com/GbrHrmnn">Twitter</a> or email
-            bl<span class="spamprotection">HIDDEN TEXT</span>o<!-- abc@def -->g@gabo<!-- @abc.com -->rherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
+            bl<span class="spamprotection">HIDDEN TEXT</span>og@gaborherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
         <p id="disclaimer">Of course, opinions are my own, they do not reflect the opinions of any past, present, future, or parallel universe employer.</p>
     </div>
 </main>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Blog on Gábor Hermann&#39;s blog</title>
+    <link>https://gaborhermann.org/</link>
+    <description>Recent content in Blog on Gábor Hermann&#39;s blog</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 02 Jul 2022 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://gaborhermann.org/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Standalone deployment of Airflow on Kubernetes</title>
+      <link>https://gaborhermann.org/standalone-deployment-airflow-kubernetes/</link>
+      <pubDate>Sat, 02 Jul 2022 00:00:00 +0000</pubDate>
+      <guid>https://gaborhermann.org/standalone-deployment-airflow-kubernetes/</guid>
+      <description>We will show how to do a very simple standalone production deployment of Airflow on Kubernetes.&#xA;Simple: it&amp;rsquo;s just a Kubernetes spec that runs one Airflow instance. Standalone: we deploy Airflow together with its database. Production: works well on production (with some limitations). The idea is to have a single Kubernetes Pod of two containers: one Postgres and one Airflow. To make the Postgres DB persistent, we deploy this with a StatefulSet and a PersistentVolumeClaim.</description>
+    </item>
+    <item>
+      <title>Local development with Kubernetes</title>
+      <link>https://gaborhermann.org/local-development-kubernetes/</link>
+      <pubDate>Mon, 27 Jun 2022 00:00:00 +0000</pubDate>
+      <guid>https://gaborhermann.org/local-development-kubernetes/</guid>
+      <description>It&amp;rsquo;s worth investing in local Kubernetes setup if we&amp;rsquo;re using Kubernetes. It can save a lot of time.&#xA;Why? Nowadays, Kubernetes is part of development. E.g. we might tweak readiness probe together with application code. Using a local cluster gets us a much faster to development cycle compared to a real cluster. There are many reasons, but there&amp;rsquo;s one big in my experience.&#xA;Building Docker image is slow when using a real cluster.</description>
+    </item>
+    <item>
+      <title>Don&#39;t use Airflow, use your CI/CD tool for orchestration</title>
+      <link>https://gaborhermann.org/use-cicd-for-orchestration/</link>
+      <pubDate>Sat, 02 Apr 2022 00:00:00 +0000</pubDate>
+      <guid>https://gaborhermann.org/use-cicd-for-orchestration/</guid>
+      <description>Nobody loves Airflow. It&amp;rsquo;s pretty cool, but there&amp;rsquo;s so much pain. So people come up with new tools like Perfect, Dagster, Flyte, Argo. These new tools will have new pains. I think we can actually avoid the new pains. We can use our good old CI/CD tooling like GitLab CI for orchestration.&#xA;No offense. Huge thanks and respect to the folks that build Airflow and other orchestration tools. I&amp;rsquo;ve been using Airflow in production for a few years and it saved me from flaky bash scripts running as cronjobs.</description>
+    </item>
+    <item>
+      <title>Using SQLite for choosing a phone to buy</title>
+      <link>https://gaborhermann.org/sqlite-find-a-phone-to-buy/</link>
+      <pubDate>Sun, 09 Jan 2022 00:00:00 +0000</pubDate>
+      <guid>https://gaborhermann.org/sqlite-find-a-phone-to-buy/</guid>
+      <description>I&amp;rsquo;d like to buy a phone that&amp;rsquo;s supported by LineageOS, was preferably released recently, and has a small screen. (Am I the only one who hates big screen phones?) I could manually browse the LineageOS supported devices, but it would take long to find what I&amp;rsquo;m looking for within hundreds of devices. Luckily, the wiki of LineageOS is also open-source, so we can fetch the data and use SQLite to browse the devices.</description>
+    </item>
+    <item>
+      <title>Dark mode, light mode, balcony</title>
+      <link>https://gaborhermann.org/dark-mode-light-mode/</link>
+      <pubDate>Wed, 27 Jan 2021 00:00:00 +0000</pubDate>
+      <guid>https://gaborhermann.org/dark-mode-light-mode/</guid>
+      <description>Everybody says dark mode is good. Or around 95% of people. But they say it&amp;rsquo;s not based on clean data because the default setting was dark.&#xA;Everybody says light mode is good. Or at least some punk bloggers and scientists. But they say we should not trust scientists anymore (rightfully so?).&#xA;I don&amp;rsquo;t know if dark mode is good or bad (it&amp;rsquo;s probably both). What I know for sure, since 2020 summer working-from-home situation, is that light mode is way better out on the balcony.</description>
+    </item>
+  </channel>
+</rss>

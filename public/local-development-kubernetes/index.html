@@ -18,18 +18,19 @@
     </div>
     <div id="content">
         
+
 <h2>
     Local development with Kubernetes
 </h2>
-<p><p>It's worth investing in local Kubernetes setup if we're using Kubernetes.
+<p><p>It&rsquo;s worth investing in local Kubernetes setup if we&rsquo;re using Kubernetes.
 It can save a lot of time.</p>
 <h1 id="why">Why?</h1>
 <p>Nowadays, Kubernetes is part of development.
 E.g. we might tweak <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/">readiness probe</a> together with <a href="https://www.baeldung.com/spring-liveness-readiness-probes">application code</a>.
-Using a local cluster gets us a much faster to development cycle compared to a real cluster. There are many reasons, but there's one big in my experience.</p>
+Using a local cluster gets us a much faster to development cycle compared to a real cluster. There are many reasons, but there&rsquo;s one big in my experience.</p>
 <p><strong>Building Docker image is slow when using a real cluster</strong>. Every time we make a code change we either need to push code to some CI/CD environment or build Docker image locally and push the image to a remote registry.</p>
 <ul>
-<li><em>CI/CD environment</em> will be slow because probably there's lot less aggressive Docker caching as locally.</li>
+<li><em>CI/CD environment</em> will be slow because probably there&rsquo;s lot less aggressive Docker caching as locally.</li>
 <li><em>Pushing to a remote registry</em> will be slow because image sizes (or layers) can be big (even if we optimize it).</li>
 </ul>
 <h1 id="how">How?</h1>
@@ -44,64 +45,55 @@ Using a local cluster gets us a much faster to development cycle compared to a r
 <li>package it into a Docker image,</li>
 <li>run it on our local Kubernetes cluster.</li>
 </ul>
-<p>Before we get started, we'll need a Docker Desktop, a terminal, and a text editor.
+<p>Before we get started, we&rsquo;ll need a Docker Desktop, a terminal, and a text editor.
 We use MacOS, but should mostly work on Linux too.</p>
 <h1 id="setup-local-kubernetes-cluster">Setup local Kubernetes cluster</h1>
-<p>We're going to use <a href="https://k3d.io/">k3d</a>.
-It's an easy way to run <a href="https://github.com/k3s-io/k3s">k3s</a> which is a very lightweight <a href="https://kubernetes.io/">k8s</a> distribution.
+<p>We&rsquo;re going to use <a href="https://k3d.io/">k3d</a>.
+It&rsquo;s an easy way to run <a href="https://github.com/k3s-io/k3s">k3s</a> which is a very lightweight <a href="https://kubernetes.io/">k8s</a> distribution.
 I hope the names are confusing.</p>
 <p>Install k3d:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">brew</span><span> install k3d
-</span></code></pre>
-<p>(<a href="https://k3d.io/">See other installation methods</a> if you're not on MacOS.)</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>brew install k3d
+</span></span></code></pre></div><p>(<a href="https://k3d.io/">See other installation methods</a> if you&rsquo;re not on MacOS.)</p>
 <p>Create cluster including local Docker image registry <a href="https://github.com/k3d-io/k3d/issues/19">for being able to use local images</a>:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">k3d</span><span> registry create registry.localhost</span><span style="color:#bf616a;"> --port</span><span> 5000
-</span><span style="color:#bf616a;">k3d</span><span> cluster create mycluster \
-</span><span style="color:#bf616a;">  --registry-use</span><span> k3d-registry.localhost:5000 \
-</span><span style="color:#bf616a;">  --registry-config </span><span>&lt;(</span><span style="color:#96b5b4;">echo </span><span>&#39;</span><span style="color:#a3be8c;">{&quot;mirrors&quot;:{&quot;localhost:5000&quot;:{&quot;endpoint&quot;:[&quot;http://k3d-registry.localhost:5000&quot;]}}}</span><span>&#39;)
-</span></code></pre>
-<p>Then we should see <code>k3d-mycluster</code> context:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> config get-contexts
-</span></code></pre>
-<p>That context should be used from whatever Kubernetes interface (I recommend k9s).</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>k3d registry create registry.localhost --port <span style="color:#ae81ff">5000</span>
+</span></span><span style="display:flex;"><span>k3d cluster create mycluster <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --registry-use k3d-registry.localhost:5000 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>  --registry-config &lt;<span style="color:#f92672">(</span>echo <span style="color:#e6db74">&#39;{&#34;mirrors&#34;:{&#34;localhost:5000&#34;:{&#34;endpoint&#34;:[&#34;http://k3d-registry.localhost:5000&#34;]}}}&#39;</span><span style="color:#f92672">)</span>
+</span></span></code></pre></div><p>Then we should see <code>k3d-mycluster</code> context:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>kubectl config get-contexts
+</span></span></code></pre></div><p>That context should be used from whatever Kubernetes interface (I recommend k9s).</p>
 <h1 id="create-script">Create script</h1>
-<p>Let's create an &quot;application&quot; that we can package in Docker.
+<p>Let&rsquo;s create an &ldquo;application&rdquo; that we can package in Docker.
 A simple script <code>myscript.sh</code>:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#65737e;">#!/bin/sh
-</span><span>
-</span><span style="color:#96b5b4;">echo</span><span> Hello local Kubernetes!
-</span></code></pre>
-<h1 id="package-script-in-docker">Package script in Docker</h1>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/sh
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>echo Hello local Kubernetes!
+</span></span></code></pre></div><h1 id="package-script-in-docker">Package script in Docker</h1>
 <p>Then a <code>Dockerfile</code> so that we can package it:</p>
-<pre data-lang="Dockerfile" style="background-color:#2b303b;color:#c0c5ce;" class="language-Dockerfile "><code class="language-Dockerfile" data-lang="Dockerfile"><span style="color:#b48ead;">FROM</span><span> busybox
-</span><span>
-</span><span style="color:#b48ead;">COPY</span><span> myscript.sh myscript.sh
-</span></code></pre>
-<p>Build the image locally and push it to local registry.</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">docker</span><span> build</span><span style="color:#bf616a;"> -t</span><span> localhost:5000/myimage:latest .
-</span><span style="color:#bf616a;">docker</span><span> push localhost:5000/myimage:latest
-</span></code></pre>
-<h1 id="run-script-on-kubernetes">Run script on Kubernetes</h1>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Dockerfile" data-lang="Dockerfile"><span style="display:flex;"><span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> busybox</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">COPY</span> myscript.sh myscript.sh<span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div><p>Build the image locally and push it to local registry.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>docker build -t localhost:5000/myimage:latest .
+</span></span><span style="display:flex;"><span>docker push localhost:5000/myimage:latest
+</span></span></code></pre></div><h1 id="run-script-on-kubernetes">Run script on Kubernetes</h1>
 <p>We will run a Kubernetes <a href="https://kubernetes.io/docs/concepts/workloads/pods/">Pod</a>.
 We should create a spec for the Pod in <code>pod.yml</code>:</p>
-<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">apiVersion</span><span>: </span><span style="color:#a3be8c;">v1
-</span><span style="color:#bf616a;">kind</span><span>: </span><span style="color:#a3be8c;">Pod
-</span><span style="color:#bf616a;">metadata</span><span>:
-</span><span>  </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">mypod
-</span><span style="color:#bf616a;">spec</span><span>:
-</span><span>  </span><span style="color:#bf616a;">restartPolicy</span><span>: </span><span style="color:#a3be8c;">Never
-</span><span>  </span><span style="color:#bf616a;">containers</span><span>:
-</span><span>    - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">mycontainer
-</span><span>      </span><span style="color:#bf616a;">image</span><span>: </span><span style="color:#a3be8c;">localhost:5000/myimage:latest
-</span><span>      </span><span style="color:#bf616a;">command</span><span>: [&quot;</span><span style="color:#a3be8c;">/bin/sh</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">myscript.sh</span><span>&quot;]
-</span></code></pre>
-<p>Then we can create this Pod:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> apply</span><span style="color:#bf616a;"> -f</span><span> pod.yml
-</span></code></pre>
-<p>It probably already run instantly, and we can see the logs:</p>
-<pre data-lang="sh" style="background-color:#2b303b;color:#c0c5ce;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">kubectl</span><span> logs pod/mypod
-</span></code></pre>
-<p>It should say <code>Hello local Kubernetes!</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">apiVersion</span>: <span style="color:#ae81ff">v1</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">kind</span>: <span style="color:#ae81ff">Pod</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">name</span>: <span style="color:#ae81ff">mypod</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">restartPolicy</span>: <span style="color:#ae81ff">Never</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">containers</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">mycontainer</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">image</span>: <span style="color:#ae81ff">localhost:5000/myimage:latest</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;/bin/sh&#34;</span>, <span style="color:#e6db74">&#34;myscript.sh&#34;</span>]
+</span></span></code></pre></div><p>Then we can create this Pod:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>kubectl apply -f pod.yml
+</span></span></code></pre></div><p>It probably already run instantly, and we can see the logs:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>kubectl logs pod/mypod
+</span></span></code></pre></div><p>It should say <code>Hello local Kubernetes!</code>.</p>
 <h1 id="going-further">Going further</h1>
 <p>Our application is probably going to be more complex.
 E.g. we can use <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/">Deployments</a>, set up a <a href="https://kubernetes.io/docs/concepts/services-networking/service/">Service</a>, and <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/">port-forwarding</a> so that we can look at our service in browser.
@@ -114,9 +106,8 @@ But this really depends on application.</p>
         <p>
             I do software:
             data crunching, functional programming, pet projects. This blog is to rant about these.</p>
-<!--        <p> I might also write about music, art, minimalism, math, food.</p>-->
         <p>Hit me up on <a href="https://twitter.com/GbrHrmnn">Twitter</a> or email
-            bl<span class="spamprotection">HIDDEN TEXT</span>o<!-- abc@def -->g@gabo<!-- @abc.com -->rherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
+            bl<span class="spamprotection">HIDDEN TEXT</span>og@gaborherm<span class="spamprotection">HIDDEN TEXT 2</span>ann.org</p>
         <p id="disclaimer">Of course, opinions are my own, they do not reflect the opinions of any past, present, future, or parallel universe employer.</p>
     </div>
 </main>
